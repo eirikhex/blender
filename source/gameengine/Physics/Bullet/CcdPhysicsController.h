@@ -586,6 +586,10 @@ protected:
 		virtual void		SetLinearDamping(float damping);
 		virtual void		SetAngularDamping(float damping);
 		virtual void		SetDamping(float linear, float angular);
+		
+		virtual void		ApplyExternalTorque(const MT_Vector3& torque, bool local);
+		virtual void		ApplyExternalForce(const MT_Vector3& force, bool local);
+		virtual void		ClearExternalForces();
 
 		// reading out information from physics
 		virtual MT_Vector3	GetLinearVelocity();

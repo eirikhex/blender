@@ -1249,6 +1249,79 @@ void		CcdPhysicsController::ApplyTorque(const MT_Vector3&  torquein,bool local)
 	}
 }
 
+void CcdPhysicsController::ApplyExternalForce(const MT_Vector3& forcein, bool local)
+{
+	btVector3 force(forcein.x(),forcein.y(),forcein.z());
+	
+
+	if (m_object && force.length2() > (SIMD_EPSILON*SIMD_EPSILON))
+	{
+		m_object->activate();
+		if (m_object->isStaticObject())
+		{
+			if (!m_cci.m_bSensor)
+				m_object->setCollisionFlags(m_object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+			return;
+		}
+		btTransform xform = m_object->getWorldTransform();
+		
+		if (local)
+		{
+			force	= xform.getBasis()*force;
+		}
+		btRigidBody* body = GetRigidBody();
+		if (body)
+			body->applyExternalForce(force);
+	}
+}
+
+void CcdPhysicsController::ApplyExternalTorque(const MT_Vector3& torquein, bool local)
+{
+	btVector3 torque(torquein.x(),torquein.y(),torquein.z());
+	btTransform xform = m_object->getWorldTransform();
+	
+
+	if (m_object && torque.length2() > (SIMD_EPSILON*SIMD_EPSILON))
+	{
+		btRigidBody* body = GetRigidBody();
+		m_object->activate();
+		if (m_object->isStaticObject())
+		{
+			if (!m_cci.m_bSensor)
+				m_object->setCollisionFlags(m_object->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+			return;
+		}
+		if (local)
+		{
+			torque	= xform.getBasis()*torque;
+		}
+		if (body)
+		{
+			if 	(m_cci.m_bRigid)
+			{
+				body->applyExternalTorque(torque);
+			}
+			else
+			{
+				//workaround for incompatibility between 'DYNAMIC' game object, and angular factor
+				//a DYNAMIC object has some inconsistency: it has no angular effect due to collisions, but still has torque
+				const btVector3 angFac = body->getAngularFactor();
+				btVector3 tmpFac(1,1,1);
+				body->setAngularFactor(tmpFac);
+				body->applyTorque(torque);
+				body->setAngularFactor(angFac);
+			} 
+		} 
+	}
+}
+
+void CcdPhysicsController::ClearExternalForces()
+{
+    btRigidBody* body = GetRigidBody();
+    if (body)
+		body->clearExternalForces();
+}
+
 void		CcdPhysicsController::ApplyForce(const MT_Vector3& forcein,bool local)
 {
 	btVector3 force(forcein.x(),forcein.y(),forcein.z());

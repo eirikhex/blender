@@ -50,7 +50,11 @@ void	btRigidBody::setupRigidBody(const btRigidBody::btRigidBodyConstructionInfo&
 	m_gravity.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	m_gravity_acceleration.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	m_totalForce.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
-	m_totalTorque.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0)),
+	m_totalTorque.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	
+	m_externalForce.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	m_externalTorque.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	
     setDamping(constructionInfo.m_linearDamping, constructionInfo.m_angularDamping);
 
 	m_linearSleepingThreshold = constructionInfo.m_linearSleepingThreshold;
@@ -158,6 +162,7 @@ void btRigidBody::setDamping(btScalar lin_damping, btScalar ang_damping)
 ///applyDamping damps the velocity, using the given m_linearDamping and m_angularDamping
 void			btRigidBody::applyDamping(btScalar timeStep)
 {
+	
 	//On new damping: see discussion/issue report here: http://code.google.com/p/bullet/issues/detail?id=74
 	//todo: do some performance comparisons (but other parts of the engine are probably bottleneck anyway
 
@@ -218,8 +223,20 @@ void btRigidBody::applyGravity()
 	if (isStaticOrKinematicObject())
 		return;
 	
-	applyCentralForce(m_gravity);	
+	applyCentralForce(m_gravity);
+	applyCentralForce(m_externalForce);
+	applyTorque(m_externalTorque);	
 
+}
+
+void btRigidBody::applyExternalForce(const btVector3& force)
+{
+    m_externalForce += force;
+		
+}
+void btRigidBody::applyExternalTorque(const btVector3& torque)
+{
+    m_externalTorque += torque;
 }
 
 void btRigidBody::proceedToTransform(const btTransform& newTrans)

@@ -20,6 +20,8 @@ subject to the following restrictions:
 #include "LinearMath/btTransform.h"
 #include "BulletCollision/BroadphaseCollision/btBroadphaseProxy.h"
 #include "BulletCollision/CollisionDispatch/btCollisionObject.h"
+//delete
+#include "iostream"
 
 class btCollisionShape;
 class btMotionState;
@@ -70,6 +72,11 @@ class btRigidBody  : public btCollisionObject
 	btVector3		m_invInertiaLocal;
 	btVector3		m_totalForce;
 	btVector3		m_totalTorque;
+	
+	// Added ineterface for external forces to solve sync problems
+	btVector3		m_externalForce;
+	btVector3		m_externalTorque;
+
 	
 	btScalar		m_linearDamping;
 	btScalar		m_angularDamping;
@@ -220,8 +227,27 @@ public:
 	{
 		return m_gravity_acceleration;
 	}
+	
+	btVector3& getExternalForce()
+	{
+	    return m_externalForce;
+	}
+	
+	btVector3& getExternalTorque()
+	{
+	    return m_externalTorque;
+	}
+	
+	void applyExternalForce(const btVector3& force);
+	void applyExternalTorque(const btVector3& torque);
+	
+	void clearExternalForces()
+	{
+	    m_externalForce.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
+		m_externalTorque.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	}
 
-	void			setDamping(btScalar lin_damping, btScalar ang_damping);
+	void setDamping(btScalar lin_damping, btScalar ang_damping);
 
 	btScalar getLinearDamping() const
 	{
@@ -243,8 +269,8 @@ public:
 		return m_angularSleepingThreshold;
 	}
 
-	void			applyDamping(btScalar timeStep);
-
+	void applyDamping(btScalar timeStep);
+    
 	SIMD_FORCE_INLINE const btCollisionShape*	getCollisionShape() const {
 		return m_collisionShape;
 	}
@@ -253,7 +279,7 @@ public:
 			return m_collisionShape;
 	}
 	
-	void			setMassProps(btScalar mass, const btVector3& inertia);
+	void setMassProps(btScalar mass, const btVector3& inertia);
 	
 	const btVector3& getLinearFactor() const
 	{
@@ -339,6 +365,8 @@ public:
 
 	void clearForces() 
 	{
+		//added this line (delete)
+		//std::cout << "Force: " << m_totalForce.getX() << " " << m_totalForce.getY()<< " " << m_totalForce.getZ() <<"\n";
 		m_totalForce.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 		m_totalTorque.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	}

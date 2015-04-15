@@ -39,6 +39,8 @@
 #endif 
 
 #include <stddef.h>
+#include "string"
+#include "iostream"
 
 #include "ListValue.h"
 #include "SCA_IObject.h"
@@ -666,6 +668,21 @@ public:
 		const MT_Vector3& torque,
 		bool local
 	);
+	
+			void
+	ApplyExternalForce(
+		const MT_Vector3& force,
+		bool local
+	);
+
+		void
+	ApplyExternalTorque(
+		const MT_Vector3& torque,
+		bool local
+	);
+	
+	    void
+	ClearExternalForces();
 
 		void
 	ApplyRotation(
@@ -702,6 +719,7 @@ public:
 	virtual void	setLinearDamping(float damping);
 	virtual void	setAngularDamping(float damping);
 	virtual void	setDamping(float linear, float angular);
+	virtual void	setJoy(float linear, float angular);
 
 	/**
 	 * Update the physics object transform based upon the current SG_Node
@@ -985,7 +1003,12 @@ public:
 	KX_PYMETHOD_VARARGS(KX_GameObject,SetAngularVelocity);
 	KX_PYMETHOD_VARARGS(KX_GameObject,GetVelocity);
 	KX_PYMETHOD_VARARGS(KX_GameObject,SetDamping);
-
+    KX_PYMETHOD_VARARGS(KX_GameObject,SetJoy);
+    
+    KX_PYMETHOD_VARARGS(KX_GameObject,ApplyExternalForce);
+    KX_PYMETHOD_VARARGS(KX_GameObject,ApplyExternalTorque);
+    KX_PYMETHOD_NOARGS(KX_GameObject,ClearExternalForces);
+    
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetReactionForce);
 
 

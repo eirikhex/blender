@@ -63,6 +63,8 @@
 #include "KX_ObstacleSimulation.h"
 #include "KX_Scene.h"
 
+
+
 #include "BKE_object.h"
 
 #include "BL_ActionManager.h"
@@ -626,6 +628,11 @@ void KX_GameObject::setDamping(float linear, float angular)
 		m_pPhysicsController->SetDamping(linear, angular);
 }
 
+void KX_GameObject::setJoy(float linear, float angular)
+{
+	std::cout <<" Hei og hopp: "<< linear << " , " << angular << "\n";
+}
+
 
 void KX_GameObject::ApplyForce(const MT_Vector3& force,bool local)
 {
@@ -639,6 +646,27 @@ void KX_GameObject::ApplyTorque(const MT_Vector3& torque,bool local)
 {
 	if (m_pPhysicsController)
 		m_pPhysicsController->ApplyTorque(torque,local);
+}
+
+
+void KX_GameObject::ApplyExternalForce(const MT_Vector3& force, bool local)
+{
+	if (m_pPhysicsController)
+		m_pPhysicsController->ApplyExternalForce(force,local);
+}
+
+
+
+void KX_GameObject::ApplyExternalTorque(const MT_Vector3& torque,bool local)
+{
+	if (m_pPhysicsController)
+		m_pPhysicsController->ApplyExternalTorque(torque,local);
+}
+
+void KX_GameObject::ClearExternalForces()
+{
+	if (m_pPhysicsController)
+		m_pPhysicsController->ClearExternalForces();
 }
 
 
@@ -1942,6 +1970,12 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"setAngularVelocity", (PyCFunction) KX_GameObject::sPySetAngularVelocity, METH_VARARGS},
 	{"getVelocity", (PyCFunction) KX_GameObject::sPyGetVelocity, METH_VARARGS},
 	{"setDamping", (PyCFunction) KX_GameObject::sPySetDamping, METH_VARARGS},
+	{"setJoy", (PyCFunction) KX_GameObject::sPySetJoy, METH_VARARGS},
+	
+	{"applyExternalForce", (PyCFunction) KX_GameObject::sPyApplyExternalForce, METH_VARARGS},
+	{"applyExternalTorque", (PyCFunction) KX_GameObject::sPyApplyExternalTorque, METH_VARARGS},
+	{"clearExternalForces", (PyCFunction) KX_GameObject::sPyClearExternalForces, METH_NOARGS},
+	
 	{"getReactionForce", (PyCFunction) KX_GameObject::sPyGetReactionForce, METH_NOARGS},
 	{"alignAxisToVect",(PyCFunction) KX_GameObject::sPyAlignAxisToVect, METH_VARARGS},
 	{"getAxisVect",(PyCFunction) KX_GameObject::sPyGetAxisVect, METH_O},
@@ -3045,6 +3079,7 @@ PyObject *KX_GameObject::PyApplyForce(PyObject *args)
 	return NULL;
 }
 
+
 PyObject *KX_GameObject::PyApplyTorque(PyObject *args)
 {
 	int local = 0;
@@ -3059,6 +3094,45 @@ PyObject *KX_GameObject::PyApplyTorque(PyObject *args)
 	}
 	return NULL;
 }
+
+
+PyObject *KX_GameObject::PyApplyExternalForce(PyObject *args)
+{
+    int local =0;
+	PyObject *pyvect;
+
+	if (PyArg_ParseTuple(args, "O|i:applyExternalForce", &pyvect, &local)) {
+		MT_Vector3 force;
+		if (PyVecTo(pyvect, force)) {
+			ApplyExternalForce(force, (local!=0));
+			Py_RETURN_NONE;
+		}
+	}
+	return NULL;
+}
+
+PyObject *KX_GameObject::PyClearExternalForces()
+{
+    ClearExternalForces();
+	Py_RETURN_NONE;
+}
+
+PyObject *KX_GameObject::PyApplyExternalTorque(PyObject *args)
+{
+    int local =0;
+	PyObject *pyvect;
+
+	if (PyArg_ParseTuple(args, "O|i:applyExternalTorque", &pyvect, &local)) {
+		MT_Vector3 torque;
+		if (PyVecTo(pyvect, torque)) {
+			ApplyExternalTorque(torque,(local!=0));
+			Py_RETURN_NONE;
+		}
+	}
+	return NULL;
+}
+
+
 
 PyObject *KX_GameObject::PyApplyRotation(PyObject *args)
 {
@@ -3157,6 +3231,20 @@ PyObject *KX_GameObject::PySetDamping(PyObject *args)
 		return NULL;
 
 	setDamping(linear, angular);
+	Py_RETURN_NONE;
+}
+
+PyObject *KX_GameObject::PySetJoy(PyObject *args)
+{
+	float linear;
+	float angular;
+
+	if (!PyArg_ParseTuple(args,"f|f:setJoy", &linear, &angular)){
+	    printf("Mongo! \n");
+		return NULL;}
+    
+    std::cout <<" Hei og hopp: "<< linear << " , " << angular << "\n";
+    //setJoy(linear,angular);
 	Py_RETURN_NONE;
 }
 

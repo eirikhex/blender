@@ -100,6 +100,10 @@ class PHY_IPhysicsController : public PHY_IController
 		virtual void		RestoreDynamics()=0;
 
 		virtual void		SetActive(bool active)=0;
+		
+		virtual void		ApplyExternalTorque(const MT_Vector3& torque, bool local)=0;
+		virtual void		ApplyExternalForce(const MT_Vector3& force, bool local)=0;
+		virtual void		ClearExternalForces()=0;
 
 		// reading out information from physics
 		virtual MT_Vector3	GetLinearVelocity()=0;
