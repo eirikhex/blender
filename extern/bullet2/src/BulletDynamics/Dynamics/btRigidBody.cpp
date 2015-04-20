@@ -55,6 +55,17 @@ void	btRigidBody::setupRigidBody(const btRigidBody::btRigidBodyConstructionInfo&
 	m_externalForce.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	m_externalTorque.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	
+	m_6DOF = false;
+	m_invInertiaTensor6DOF11 = btMatrix3x3::getIdentity() * constructionInfo.m_mass;
+	m_invInertiaTensor6DOF12.setValue(  btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                                    btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                                    btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	                                    
+	m_invInertiaTensor6DOF21.setValue(  btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                                    btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                                    btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	m_invInertiaTensor6DOF22 = btMatrix3x3::getIdentity().scaled(constructionInfo.m_localInertia);
+	
     setDamping(constructionInfo.m_linearDamping, constructionInfo.m_angularDamping);
 
 	m_linearSleepingThreshold = constructionInfo.m_linearSleepingThreshold;
@@ -270,7 +281,19 @@ void btRigidBody::setMassProps(btScalar mass, const btVector3& inertia)
 	
 void btRigidBody::updateInertiaTensor() 
 {
-	m_invInertiaTensorWorld = m_worldTransform.getBasis().scaled(m_invInertiaLocal) * m_worldTransform.getBasis().transpose();
+	if(m_6DOF)
+	{
+	    btMatrix3x3 R = m_worldTransform.getBasis();
+	    m_invInertiaTensor6DOF11W = R * m_invInertiaTensor6DOF11.timesTranspose(R);
+	    m_invInertiaTensor6DOF12W = R * m_invInertiaTensor6DOF12.timesTranspose(R);
+	    m_invInertiaTensor6DOF21W = R * m_invInertiaTensor6DOF21.timesTranspose(R);
+	    m_invInertiaTensor6DOF22W = R * m_invInertiaTensor6DOF22.timesTranspose(R);
+	}
+	else
+	{
+	    m_invInertiaTensorWorld = m_worldTransform.getBasis().scaled(m_invInertiaLocal) * m_worldTransform.getBasis().transpose();
+	}
+	
 }
 
 
@@ -295,10 +318,19 @@ void btRigidBody::integrateVelocities(btScalar step)
 {
 	if (isStaticOrKinematicObject())
 		return;
-
+		
+	if (m_6DOF)
+	{
+	m_linearVelocity += m_invInertiaTensor6DOF11W * m_totalForce * step;
+	m_linearVelocity += m_invInertiaTensor6DOF12W * m_totalTorque * step;
+	m_angularVelocity += m_invInertiaTensor6DOF21W * m_totalForce * step;
+	m_angularVelocity += m_invInertiaTensor6DOF22W * m_totalTorque * step;
+	}
+	else
+	{
 	m_linearVelocity += m_totalForce * (m_inverseMass * step);
 	m_angularVelocity += m_invInertiaTensorWorld * m_totalTorque * step;
-
+    }
 #define MAX_ANGVEL SIMD_HALF_PI
 	/// clamp angular velocity. collision calculations will fail on higher angular velocities	
 	btScalar angvel = m_angularVelocity.length();
@@ -331,6 +363,42 @@ void btRigidBody::setCenterOfMassTransform(const btTransform& xform)
 	m_interpolationAngularVelocity = getAngularVelocity();
 	m_worldTransform = xform;
 	updateInertiaTensor();
+}
+
+void btRigidBody::set6DOFinertia(const btMatrix3x3& A,const btMatrix3x3& B,const btMatrix3x3& C,const btMatrix3x3& D)
+{
+    // Blockwice inversion
+    btMatrix3x3 Ainv = A.inverse();
+    btMatrix3x3 E = (D-C*Ainv*B).inverse();
+    btMatrix3x3 neg = btMatrix3x3::getIdentity() * btScalar(-1.0);
+    
+   	m_invInertiaTensor6DOF11 = Ainv + Ainv*B*E*C*Ainv;
+	m_invInertiaTensor6DOF12 = neg * (Ainv*B*E);
+	m_invInertiaTensor6DOF21 = neg * (E*C*Ainv);
+	m_invInertiaTensor6DOF22 = E;
+}
+
+btMatrix3x3 btRigidBody::get6DOFinvInertia(int i, int j)
+{
+    switch (i) {
+        case 1:
+            switch (j) {
+                case 1:
+                    return m_invInertiaTensor6DOF11;
+                case 2:
+                    return m_invInertiaTensor6DOF12;
+            }
+        case 2:
+            switch (j) {
+                case 1:
+                    return m_invInertiaTensor6DOF21;
+                case 2:
+                    return m_invInertiaTensor6DOF22;
+            }
+        }
+    return btMatrix3x3( btScalar(0.0),btScalar(0.0),btScalar(0.0),
+                        btScalar(0.0),btScalar(0.0),btScalar(0.0),
+                        btScalar(0.0),btScalar(0.0),btScalar(0.0));  
 }
 
 

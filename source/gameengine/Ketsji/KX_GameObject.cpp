@@ -655,8 +655,6 @@ void KX_GameObject::ApplyExternalForce(const MT_Vector3& force, bool local)
 		m_pPhysicsController->ApplyExternalForce(force,local);
 }
 
-
-
 void KX_GameObject::ApplyExternalTorque(const MT_Vector3& torque,bool local)
 {
 	if (m_pPhysicsController)
@@ -669,6 +667,33 @@ void KX_GameObject::ClearExternalForces()
 		m_pPhysicsController->ClearExternalForces();
 }
 
+void KX_GameObject::enable6DOF()
+{
+    if (m_pPhysicsController)
+        m_pPhysicsController->enable6DOF();
+}
+
+void KX_GameObject::disable6DOF()
+{
+    if (m_pPhysicsController)
+        m_pPhysicsController->disable6DOF();
+}
+
+void KX_GameObject::set6DOFinertia(const MT_Matrix3x3& I11, const MT_Matrix3x3& I12, const MT_Matrix3x3& I21, const MT_Matrix3x3& I22)
+{
+    if (m_pPhysicsController)
+        m_pPhysicsController->set6DOFinertia(I11,I12,I21,I22);
+}
+
+MT_Matrix3x3 KX_GameObject::get6DOFinvInertia(int i, int j)
+{
+    if (m_pPhysicsController)
+        return m_pPhysicsController->get6DOFinvInertia(i,j);
+    
+    return MT_Matrix3x3(0.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0);
+}
 
 
 void KX_GameObject::ApplyMovement(const MT_Vector3& dloc,bool local)
@@ -1976,6 +2001,11 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"applyExternalTorque", (PyCFunction) KX_GameObject::sPyApplyExternalTorque, METH_VARARGS},
 	{"clearExternalForces", (PyCFunction) KX_GameObject::sPyClearExternalForces, METH_NOARGS},
 	
+	{"disable6DOF", (PyCFunction) KX_GameObject::sPyDisable6DOF, METH_NOARGS},
+	{"enable6DOF", (PyCFunction) KX_GameObject::sPyEnable6DOF, METH_NOARGS},
+	{"get6DOFinvInertia", (PyCFunction) KX_GameObject::sPyGet6DOFinvInertia, METH_VARARGS},
+	{"set6DOFinertia", (PyCFunction) KX_GameObject::sPySet6DOFinertia, METH_VARARGS},
+	
 	{"getReactionForce", (PyCFunction) KX_GameObject::sPyGetReactionForce, METH_NOARGS},
 	{"alignAxisToVect",(PyCFunction) KX_GameObject::sPyAlignAxisToVect, METH_VARARGS},
 	{"getAxisVect",(PyCFunction) KX_GameObject::sPyGetAxisVect, METH_O},
@@ -3130,6 +3160,54 @@ PyObject *KX_GameObject::PyApplyExternalTorque(PyObject *args)
 		}
 	}
 	return NULL;
+}
+
+PyObject *KX_GameObject::PyEnable6DOF()
+{
+    enable6DOF();
+    Py_RETURN_NONE;
+}
+
+PyObject *KX_GameObject::PyDisable6DOF()
+{
+    disable6DOF();
+    Py_RETURN_NONE;
+}
+
+PyObject *KX_GameObject::PyGet6DOFinvInertia(PyObject *args)
+{
+    int i = 0;
+    int j = 0;
+    
+    if (PyArg_ParseTuple(args, "i|i:get6DOFinvInertia", &i, &j)) 
+    {
+        MT_Matrix3x3 out = get6DOFinvInertia(i,j);
+        return PyObjectFrom(out);
+    }
+    return NULL;
+}
+
+PyObject *KX_GameObject::PySet6DOFinertia(PyObject *args)
+{
+    PyObject *pyI11;
+    PyObject *pyI12;
+    PyObject *pyI21;
+    PyObject *pyI22;
+    
+    if (PyArg_ParseTuple(args, "O|OOO:set6DOFinertia", &pyI11, &pyI12, &pyI21, &pyI22)) 
+    {
+        MT_Matrix3x3 I11;
+        MT_Matrix3x3 I12;
+        MT_Matrix3x3 I21;
+        MT_Matrix3x3 I22;
+        
+        if (!(PyMatTo(pyI11,I11) && PyMatTo(pyI12,I12) && PyMatTo(pyI21,I21) && PyMatTo(pyI22,I22)))
+            return NULL;
+        
+        set6DOFinertia(I11,I12,I21,I22);
+        Py_RETURN_NONE;
+    }
+    return NULL;
 }
 
 

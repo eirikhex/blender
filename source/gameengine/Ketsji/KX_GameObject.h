@@ -683,6 +683,26 @@ public:
 	
 	    void
 	ClearExternalForces();
+	    
+	    void
+	enable6DOF();
+	
+	    void
+	disable6DOF();
+	
+	    void
+	set6DOFinertia(
+	    const MT_Matrix3x3& I11,
+	    const MT_Matrix3x3& I12,
+	    const MT_Matrix3x3& I21,
+	    const MT_Matrix3x3& I22
+	);
+	
+	    MT_Matrix3x3
+	get6DOFinvInertia(
+	    int i,
+	    int j
+	);
 
 		void
 	ApplyRotation(
@@ -1008,6 +1028,11 @@ public:
     KX_PYMETHOD_VARARGS(KX_GameObject,ApplyExternalForce);
     KX_PYMETHOD_VARARGS(KX_GameObject,ApplyExternalTorque);
     KX_PYMETHOD_NOARGS(KX_GameObject,ClearExternalForces);
+    
+    KX_PYMETHOD_NOARGS(KX_GameObject,Enable6DOF);
+    KX_PYMETHOD_NOARGS(KX_GameObject,Disable6DOF);
+    KX_PYMETHOD_VARARGS(KX_GameObject,Get6DOFinvInertia);
+    KX_PYMETHOD_VARARGS(KX_GameObject,Set6DOFinertia);
     
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetReactionForce);
 

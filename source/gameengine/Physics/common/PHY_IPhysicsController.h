@@ -104,6 +104,11 @@ class PHY_IPhysicsController : public PHY_IController
 		virtual void		ApplyExternalTorque(const MT_Vector3& torque, bool local)=0;
 		virtual void		ApplyExternalForce(const MT_Vector3& force, bool local)=0;
 		virtual void		ClearExternalForces()=0;
+		
+		virtual void        enable6DOF()=0;
+		virtual void        disable6DOF()=0;
+		virtual void        set6DOFinertia(const MT_Matrix3x3& I11,const MT_Matrix3x3& I12,const MT_Matrix3x3& I21,const MT_Matrix3x3& I22)=0;
+		virtual MT_Matrix3x3    get6DOFinvInertia(int i, int j)=0;
 
 		// reading out information from physics
 		virtual MT_Vector3	GetLinearVelocity()=0;

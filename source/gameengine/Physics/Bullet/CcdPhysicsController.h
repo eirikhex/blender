@@ -590,6 +590,11 @@ protected:
 		virtual void		ApplyExternalTorque(const MT_Vector3& torque, bool local);
 		virtual void		ApplyExternalForce(const MT_Vector3& force, bool local);
 		virtual void		ClearExternalForces();
+		
+		virtual void        enable6DOF();
+		virtual void        disable6DOF();
+		virtual void        set6DOFinertia(const MT_Matrix3x3& I11,const MT_Matrix3x3& I12,const MT_Matrix3x3& I21,const MT_Matrix3x3& I22);
+		virtual MT_Matrix3x3    get6DOFinvInertia(int i, int j);
 
 		// reading out information from physics
 		virtual MT_Vector3	GetLinearVelocity();

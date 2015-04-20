@@ -1275,6 +1275,7 @@ void CcdPhysicsController::ApplyExternalForce(const MT_Vector3& forcein, bool lo
 	}
 }
 
+
 void CcdPhysicsController::ApplyExternalTorque(const MT_Vector3& torquein, bool local)
 {
 	btVector3 torque(torquein.x(),torquein.y(),torquein.z());
@@ -1321,6 +1322,60 @@ void CcdPhysicsController::ClearExternalForces()
     if (body)
 		body->clearExternalForces();
 }
+
+
+void CcdPhysicsController::enable6DOF()
+{
+    btRigidBody* body = GetRigidBody();
+    if (body)
+		body->enable6DOF();
+}
+
+void CcdPhysicsController::disable6DOF()
+{
+    btRigidBody* body = GetRigidBody();
+    if (body)
+		body->disable6DOF();
+}
+
+
+void CcdPhysicsController::set6DOFinertia(const MT_Matrix3x3& I11,const MT_Matrix3x3& I12,const MT_Matrix3x3& I21,const MT_Matrix3x3& I22)
+{   
+    btMatrix3x3 Inertia11(  I11[0][0],I11[0][1],I11[0][2],
+                            I11[1][0],I11[1][1],I11[1][2],
+                            I11[2][0],I11[2][1],I11[2][2]);
+                            
+    btMatrix3x3 Inertia12(  I12[0][0],I12[0][1],I12[0][2],
+                            I12[1][0],I12[1][1],I12[1][2],
+                            I12[2][0],I12[2][1],I12[2][2]);
+    
+    btMatrix3x3 Inertia21(  I21[0][0],I21[0][1],I21[0][2],
+                            I21[1][0],I21[1][1],I21[1][2],
+                            I21[2][0],I21[2][1],I21[2][2]);
+    
+    btMatrix3x3 Inertia22(  I22[0][0],I22[0][1],I22[0][2],
+                            I22[1][0],I22[1][1],I22[1][2],
+                            I22[2][0],I22[2][1],I22[2][2]);
+    
+    btRigidBody* body = GetRigidBody();
+    if (body)
+		body->set6DOFinertia(Inertia11,Inertia12,Inertia21,Inertia22);
+}
+
+MT_Matrix3x3 CcdPhysicsController::get6DOFinvInertia(int i, int j)
+{
+    btRigidBody* body = GetRigidBody();
+    if (body)
+    {
+		btMatrix3x3 invInertia = body->get6DOFinvInertia(i,j);
+		return MT_Matrix3x3(    invInertia[0][0] ,invInertia[0][1], invInertia[0][2], 
+		                        invInertia[1][0] ,invInertia[1][1], invInertia[1][2], 
+		                        invInertia[2][0] ,invInertia[2][1], invInertia[2][2]);
+	}
+
+	return MT_Matrix3x3(0.0 ,0.0, 0.0, 0.0 ,0.0, 0.0, 0.0 ,0.0, 0.0);
+}
+
 
 void		CcdPhysicsController::ApplyForce(const MT_Vector3& forcein,bool local)
 {

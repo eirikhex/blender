@@ -62,6 +62,18 @@ class btRigidBody  : public btCollisionObject
 {
 
 	btMatrix3x3	m_invInertiaTensorWorld;
+	
+	bool        m_6DOF;
+	btMatrix3x3	m_invInertiaTensor6DOF11W;
+	btMatrix3x3	m_invInertiaTensor6DOF12W;
+	btMatrix3x3	m_invInertiaTensor6DOF21W;
+	btMatrix3x3	m_invInertiaTensor6DOF22W;
+	
+	btMatrix3x3	m_invInertiaTensor6DOF11;
+	btMatrix3x3	m_invInertiaTensor6DOF12;
+	btMatrix3x3	m_invInertiaTensor6DOF21;
+	btMatrix3x3	m_invInertiaTensor6DOF22;
+	
 	btVector3		m_linearVelocity;
 	btVector3		m_angularVelocity;
 	btScalar		m_inverseMass;
@@ -73,7 +85,7 @@ class btRigidBody  : public btCollisionObject
 	btVector3		m_totalForce;
 	btVector3		m_totalTorque;
 	
-	// Added ineterface for external forces to solve sync problems
+	// Added interface for external forces to solve sync problems
 	btVector3		m_externalForce;
 	btVector3		m_externalTorque;
 
@@ -280,6 +292,20 @@ public:
 	}
 	
 	void setMassProps(btScalar mass, const btVector3& inertia);
+	
+	void enable6DOF()
+	{
+	    m_6DOF = true;
+	}
+	
+	void disable6DOF()
+	{
+	    m_6DOF = false;
+	}
+	
+	void set6DOFinertia(const btMatrix3x3& I11,const btMatrix3x3& I12,const btMatrix3x3& I21,const btMatrix3x3& I22);
+	
+	btMatrix3x3 get6DOFinvInertia(int i, int j);
 	
 	const btVector3& getLinearFactor() const
 	{
