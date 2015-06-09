@@ -695,6 +695,20 @@ MT_Matrix3x3 KX_GameObject::get6DOFinvInertia(int i, int j)
                         0.0, 0.0, 0.0);
 }
 
+void KX_GameObject::setBuoyancy(const MT_Vector3& buoyancy)
+{
+    if (m_pPhysicsController)
+        m_pPhysicsController->setBuoyancy(buoyancy);
+}
+
+MT_Vector3 KX_GameObject::getBuoyancy()
+{
+    if (m_pPhysicsController)
+        return m_pPhysicsController->getBuoyancy();
+        
+    return MT_Vector3(0.0,0.0,0.0);
+}
+
 
 void KX_GameObject::ApplyMovement(const MT_Vector3& dloc,bool local)
 {
@@ -2006,6 +2020,9 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"get6DOFinvInertia", (PyCFunction) KX_GameObject::sPyGet6DOFinvInertia, METH_VARARGS},
 	{"set6DOFinertia", (PyCFunction) KX_GameObject::sPySet6DOFinertia, METH_VARARGS},
 	
+	{"setBuoyancy", (PyCFunction) KX_GameObject::sPySetBuoyancy, METH_VARARGS},
+	{"getBuoyancy", (PyCFunction) KX_GameObject::sPyGetBuoyancy, METH_NOARGS},
+	
 	{"getReactionForce", (PyCFunction) KX_GameObject::sPyGetReactionForce, METH_NOARGS},
 	{"alignAxisToVect",(PyCFunction) KX_GameObject::sPyAlignAxisToVect, METH_VARARGS},
 	{"getAxisVect",(PyCFunction) KX_GameObject::sPyGetAxisVect, METH_O},
@@ -3208,6 +3225,26 @@ PyObject *KX_GameObject::PySet6DOFinertia(PyObject *args)
         Py_RETURN_NONE;
     }
     return NULL;
+}
+
+PyObject *KX_GameObject::PySetBuoyancy(PyObject *args)
+{
+    PyObject *pyBuoyancy;
+    
+    if (PyArg_ParseTuple(args, "O:setBuoyancy", &pyBuoyancy))
+    {   
+        MT_Vector3 buoyancy;
+        if (PyVecTo(pyBuoyancy,buoyancy))
+        {
+            setBuoyancy(buoyancy);
+            Py_RETURN_NONE;
+        }
+    }
+    return NULL;
+}
+PyObject *KX_GameObject::PyGetBuoyancy()
+{
+    return PyObjectFrom(getBuoyancy());
 }
 
 

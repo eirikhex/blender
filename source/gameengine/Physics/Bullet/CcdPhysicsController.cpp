@@ -1338,28 +1338,51 @@ void CcdPhysicsController::disable6DOF()
 		body->disable6DOF();
 }
 
-
-void CcdPhysicsController::set6DOFinertia(const MT_Matrix3x3& I11,const MT_Matrix3x3& I12,const MT_Matrix3x3& I21,const MT_Matrix3x3& I22)
-{   
-    btMatrix3x3 Inertia11(  I11[0][0],I11[0][1],I11[0][2],
-                            I11[1][0],I11[1][1],I11[1][2],
-                            I11[2][0],I11[2][1],I11[2][2]);
-                            
-    btMatrix3x3 Inertia12(  I12[0][0],I12[0][1],I12[0][2],
-                            I12[1][0],I12[1][1],I12[1][2],
-                            I12[2][0],I12[2][1],I12[2][2]);
-    
-    btMatrix3x3 Inertia21(  I21[0][0],I21[0][1],I21[0][2],
-                            I21[1][0],I21[1][1],I21[1][2],
-                            I21[2][0],I21[2][1],I21[2][2]);
-    
-    btMatrix3x3 Inertia22(  I22[0][0],I22[0][1],I22[0][2],
-                            I22[1][0],I22[1][1],I22[1][2],
-                            I22[2][0],I22[2][1],I22[2][2]);
-    
+void CcdPhysicsController::setBuoyancy(const MT_Vector3& buoyancy)
+{
     btRigidBody* body = GetRigidBody();
     if (body)
+    {
+        btVector3 Buoyancy(buoyancy[0], buoyancy[1], buoyancy[2]);
+        body->setBuoyancy(Buoyancy);
+    }
+}
+
+MT_Vector3 CcdPhysicsController::getBuoyancy()
+{
+    btRigidBody* body = GetRigidBody();
+    if (body)
+    {
+        btVector3 buoyancy = body->getBuoyancy();
+        return MT_Vector3(buoyancy[0],buoyancy[1],buoyancy[2]);
+    }
+    return MT_Vector3(0.0,0.0,0.0);
+}
+
+
+void CcdPhysicsController::set6DOFinertia(const MT_Matrix3x3& I11,const MT_Matrix3x3& I12,const MT_Matrix3x3& I21,const MT_Matrix3x3& I22)
+{       
+    btRigidBody* body = GetRigidBody();
+    if (body)
+    {
+        btMatrix3x3 Inertia11(  I11[0][0],I11[0][1],I11[0][2],
+                                I11[1][0],I11[1][1],I11[1][2],
+                                I11[2][0],I11[2][1],I11[2][2]);
+                            
+        btMatrix3x3 Inertia12(  I12[0][0],I12[0][1],I12[0][2],
+                                I12[1][0],I12[1][1],I12[1][2],
+                                I12[2][0],I12[2][1],I12[2][2]);
+    
+        btMatrix3x3 Inertia21(  I21[0][0],I21[0][1],I21[0][2],
+                                I21[1][0],I21[1][1],I21[1][2],
+                                I21[2][0],I21[2][1],I21[2][2]);
+    
+        btMatrix3x3 Inertia22(  I22[0][0],I22[0][1],I22[0][2],
+                                I22[1][0],I22[1][1],I22[1][2],
+                                I22[2][0],I22[2][1],I22[2][2]);
+                                
 		body->set6DOFinertia(Inertia11,Inertia12,Inertia21,Inertia22);
+	}
 }
 
 MT_Matrix3x3 CcdPhysicsController::get6DOFinvInertia(int i, int j)

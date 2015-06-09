@@ -686,7 +686,6 @@ bool	CcdPhysicsEnvironment::ProceedDeltaTime(double curTime,float timeStep,float
 {
 	std::set<CcdPhysicsController*>::iterator it;
 	int i;
-
 	for (it=m_controllers.begin(); it!=m_controllers.end(); it++)
 	{
 		(*it)->SynchronizeMotionStates(timeStep);

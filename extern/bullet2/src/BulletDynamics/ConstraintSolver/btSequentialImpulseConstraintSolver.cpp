@@ -288,7 +288,7 @@ int btSequentialImpulseConstraintSolver::btRandInt2 (int n)
 
 
 void	btSequentialImpulseConstraintSolver::initSolverBody(btSolverBody* solverBody, btCollisionObject* collisionObject, btScalar timeStep)
-{
+{   
 
 	btRigidBody* rb = collisionObject? btRigidBody::upcast(collisionObject) : 0;
 
@@ -298,7 +298,8 @@ void	btSequentialImpulseConstraintSolver::initSolverBody(btSolverBody* solverBod
 	solverBody->internalGetTurnVelocity().setValue(0.f,0.f,0.f);
 
 	if (rb)
-	{
+	{   
+	    rb->integrateVelocities(timeStep);
 		solverBody->m_worldTransform = rb->getWorldTransform();
 		solverBody->internalSetInvMass(btVector3(rb->getInvMass(),rb->getInvMass(),rb->getInvMass())*rb->getLinearFactor());
 		solverBody->m_originalBody = rb;
@@ -306,9 +307,30 @@ void	btSequentialImpulseConstraintSolver::initSolverBody(btSolverBody* solverBod
 		solverBody->m_linearFactor = rb->getLinearFactor();
 		solverBody->m_linearVelocity = rb->getLinearVelocity();
 		solverBody->m_angularVelocity = rb->getAngularVelocity();
-		solverBody->m_externalForceImpulse = rb->getTotalForce()*rb->getInvMass()*timeStep;
-		solverBody->m_externalTorqueImpulse = rb->getTotalTorque()*rb->getInvInertiaTensorWorld()*timeStep ;
-		
+		if(rb->is6DOF())
+		{   
+		    //std::cout << "Linear Velocity: " << rb->getLinearVelocity()[0] << " " << rb->getLinearVelocity()[1] << " " << rb->getLinearVelocity()[2] <<std::endl;
+		    //std::cout << "AngularVelocity: " << rb->getAngularVelocity()[0] << " " << rb->getAngularVelocity()[1] << " " << rb->getAngularVelocity()[2] <<std::endl;
+		    btVector3 force  = ( rb->get6DOFinvInertiaWorld(1,1) * rb->getTotalForce() + rb->get6DOFinvInertiaWorld(1,2) * rb->getTotalTorque()  ) * timeStep;
+		    btVector3 torque = ( rb->get6DOFinvInertiaWorld(2,2) * rb->getTotalTorque()  + rb->get6DOFinvInertiaWorld(2,1) * rb->getTotalForce()) * timeStep ;
+		    //std::cout << "Inertia: " << rb->get6DOFinvInertia(1,1)[0][0] << " " << rb->get6DOFinvInertia(1,1)[0][1] << " " << rb->get6DOFinvInertia(1,1)[0][2] << rb->get6DOFinvInertia(1,2)[0][0] << " " << rb->get6DOFinvInertia(1,2)[0][1] << " " << rb->get6DOFinvInertia(1,2)[0][2]<<std::endl;
+		    //std::cout << "         " << rb->get6DOFinvInertia(1,1)[1][0] << " " << rb->get6DOFinvInertia(1,1)[1][1] << " " << rb->get6DOFinvInertia(1,1)[1][2] << rb->get6DOFinvInertia(1,2)[1][0] << " " << rb->get6DOFinvInertia(1,2)[1][1] << " " << rb->get6DOFinvInertia(1,2)[1][2]<<std::endl;
+		    //std::cout << "         " << rb->get6DOFinvInertia(1,1)[2][0] << " " << rb->get6DOFinvInertia(1,1)[2][1] << " " << rb->get6DOFinvInertia(1,1)[2][2] << rb->get6DOFinvInertia(1,2)[2][0] << " " << rb->get6DOFinvInertia(1,2)[2][1] << " " << rb->get6DOFinvInertia(1,2)[2][2]<<std::endl;
+		    
+		    //std::cout<<"\n Force: " << force[0] <<" "<< force[1] << " "<<force[2] << std::endl;
+		    //std::cout<<"\n Torque: " << torque[0] << " "<<torque[1] <<" "<< torque[2] << std::endl;
+		    
+		    solverBody->m_externalForceImpulse = force;
+		    solverBody->m_externalTorqueImpulse = torque;
+		    
+		    //solverBody->m_externalForceImpulse  = ( rb->get6DOFinvInertiaWorld(1,1) * rb->getTotalForce()  ) * timeStep ;//+ rb->get6DOFinvInertiaWorld(1,2) * rb->getTotalTorque()
+		    //solverBody->m_externalTorqueImpulse = (  rb->get6DOFinvInertiaWorld(2,2) * rb->getTotalTorque()  ) * timeStep ; //+ rb->get6DOFinvInertiaWorld(2,1) * rb->getTotalForce()
+		}
+		else
+		{
+		    solverBody->m_externalForceImpulse = rb->getInvMass()*rb->getTotalForce()*timeStep;
+		    solverBody->m_externalTorqueImpulse = rb->getInvInertiaTensorWorld()*rb->getTotalTorque()*timeStep ;
+		}
 	} else
 	{
 		solverBody->m_worldTransform.setIdentity();

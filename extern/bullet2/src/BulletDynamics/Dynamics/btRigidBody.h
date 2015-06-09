@@ -78,7 +78,8 @@ class btRigidBody  : public btCollisionObject
 	btVector3		m_angularVelocity;
 	btScalar		m_inverseMass;
 	btVector3		m_linearFactor;
-
+    
+    btVector3		m_buoyancy;
 	btVector3		m_gravity;	
 	btVector3		m_gravity_acceleration;
 	btVector3		m_invInertiaLocal;
@@ -233,11 +234,18 @@ public:
 	
 	void			applyGravity();
 	
-	void			setGravity(const btVector3& acceleration);  
+	void			setGravity(const btVector3& acceleration);
+	
+	void            setBuoyancy(const btVector3& buoyancy);  
 
 	const btVector3&	getGravity() const
 	{
 		return m_gravity_acceleration;
+	}
+	
+	const btVector3&	getBuoyancy() const
+	{
+		return m_buoyancy;
 	}
 	
 	btVector3& getExternalForce()
@@ -303,9 +311,16 @@ public:
 	    m_6DOF = false;
 	}
 	
+	bool is6DOF()
+	{
+	    return m_6DOF;
+	}
+	
 	void set6DOFinertia(const btMatrix3x3& I11,const btMatrix3x3& I12,const btMatrix3x3& I21,const btMatrix3x3& I22);
 	
 	btMatrix3x3 get6DOFinvInertia(int i, int j);
+	
+	btMatrix3x3 get6DOFinvInertiaWorld(int i, int j);
 	
 	const btVector3& getLinearFactor() const
 	{
@@ -331,7 +346,7 @@ public:
 	}
 
 	const btVector3& getTotalForce() const
-	{
+	{   
 		return m_totalForce;
 	};
 

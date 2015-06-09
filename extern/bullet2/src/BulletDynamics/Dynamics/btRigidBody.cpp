@@ -48,6 +48,7 @@ void	btRigidBody::setupRigidBody(const btRigidBody::btRigidBodyConstructionInfo&
 	m_angularFactor.setValue(1,1,1);
 	m_linearFactor.setValue(1,1,1);
 	m_gravity.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	m_buoyancy.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	m_gravity_acceleration.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	m_totalForce.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	m_totalTorque.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
@@ -158,6 +159,11 @@ void btRigidBody::setGravity(const btVector3& acceleration)
 
 
 
+void btRigidBody::setBuoyancy(const btVector3& buoyancy) 
+{
+	m_buoyancy = buoyancy;
+}
+
 
 
 
@@ -173,7 +179,8 @@ void btRigidBody::setDamping(btScalar lin_damping, btScalar ang_damping)
 ///applyDamping damps the velocity, using the given m_linearDamping and m_angularDamping
 void			btRigidBody::applyDamping(btScalar timeStep)
 {
-	
+    //std::cout << "Damping: " << m_linearDamping << "   " << m_angularDamping << "   " <<  m_additionalDamping << "\n";
+    //std::cout << "Timestep: " << timeStep << "\n";
 	//On new damping: see discussion/issue report here: http://code.google.com/p/bullet/issues/detail?id=74
 	//todo: do some performance comparisons (but other parts of the engine are probably bottleneck anyway
 
@@ -233,10 +240,12 @@ void btRigidBody::applyGravity()
 {
 	if (isStaticOrKinematicObject())
 		return;
-	
+	//std::cout << "\n \n Gravity: " <<m_gravity[2] << "\n Buoyancy: "<< m_buoyancy[2] << "\n G: " << m_gravity_acceleration[2] << "\n Mass: "<<btScalar(1.0)/m_inverseMass;
 	applyCentralForce(m_gravity);
+	applyCentralForce(m_buoyancy);
 	applyCentralForce(m_externalForce);
-	applyTorque(m_externalTorque);	
+	applyTorque(m_externalTorque);
+
 
 }
 
@@ -247,6 +256,7 @@ void btRigidBody::applyExternalForce(const btVector3& force)
 }
 void btRigidBody::applyExternalTorque(const btVector3& torque)
 {
+    //std::cout << "morse\n";
     m_externalTorque += torque;
 }
 
@@ -257,7 +267,8 @@ void btRigidBody::proceedToTransform(const btTransform& newTrans)
 	
 
 void btRigidBody::setMassProps(btScalar mass, const btVector3& inertia)
-{
+{   
+    std::cout<<" MASS: " <<mass;
 	if (mass == btScalar(0.))
 	{
 		m_collisionFlags |= btCollisionObject::CF_STATIC_OBJECT;
@@ -284,10 +295,11 @@ void btRigidBody::updateInertiaTensor()
 	if(m_6DOF)
 	{
 	    btMatrix3x3 R = m_worldTransform.getBasis();
-	    m_invInertiaTensor6DOF11W = R * m_invInertiaTensor6DOF11.timesTranspose(R);
-	    m_invInertiaTensor6DOF12W = R * m_invInertiaTensor6DOF12.timesTranspose(R);
-	    m_invInertiaTensor6DOF21W = R * m_invInertiaTensor6DOF21.timesTranspose(R);
-	    m_invInertiaTensor6DOF22W = R * m_invInertiaTensor6DOF22.timesTranspose(R);
+	    m_invInertiaTensor6DOF11W = R * m_invInertiaTensor6DOF11 * R.transpose() ;
+	    m_invInertiaTensor6DOF12W = R * m_invInertiaTensor6DOF12 * R.transpose();
+	    m_invInertiaTensor6DOF21W = R * m_invInertiaTensor6DOF21 * R.transpose();
+	    m_invInertiaTensor6DOF22W = R * m_invInertiaTensor6DOF22 * R.transpose();
+	    m_invInertiaTensorWorld   = m_invInertiaTensor6DOF22W;
 	}
 	else
 	{
@@ -321,10 +333,10 @@ void btRigidBody::integrateVelocities(btScalar step)
 		
 	if (m_6DOF)
 	{
-	m_linearVelocity += m_invInertiaTensor6DOF11W * m_totalForce * step;
-	m_linearVelocity += m_invInertiaTensor6DOF12W * m_totalTorque * step;
-	m_angularVelocity += m_invInertiaTensor6DOF21W * m_totalForce * step;
-	m_angularVelocity += m_invInertiaTensor6DOF22W * m_totalTorque * step;
+	m_linearVelocity += m_invInertiaTensor6DOF11W * getTotalForce() * step;
+	m_linearVelocity += m_invInertiaTensor6DOF12W * getTotalTorque() * step;
+	m_angularVelocity += m_invInertiaTensor6DOF21W * getTotalForce() * step;
+	m_angularVelocity += m_invInertiaTensor6DOF22W * getTotalTorque() * step;
 	}
 	else
 	{
@@ -376,6 +388,9 @@ void btRigidBody::set6DOFinertia(const btMatrix3x3& A,const btMatrix3x3& B,const
 	m_invInertiaTensor6DOF12 = neg * (Ainv*B*E);
 	m_invInertiaTensor6DOF21 = neg * (E*C*Ainv);
 	m_invInertiaTensor6DOF22 = E;
+	
+	//setMassProps(A[0][0], btVector3(D[0][0],D[1][1],D[2][2]));
+	updateInertiaTensor();
 }
 
 btMatrix3x3 btRigidBody::get6DOFinvInertia(int i, int j)
@@ -394,6 +409,29 @@ btMatrix3x3 btRigidBody::get6DOFinvInertia(int i, int j)
                     return m_invInertiaTensor6DOF21;
                 case 2:
                     return m_invInertiaTensor6DOF22;
+            }
+        }
+    return btMatrix3x3( btScalar(0.0),btScalar(0.0),btScalar(0.0),
+                        btScalar(0.0),btScalar(0.0),btScalar(0.0),
+                        btScalar(0.0),btScalar(0.0),btScalar(0.0));  
+}
+
+btMatrix3x3 btRigidBody::get6DOFinvInertiaWorld(int i, int j)
+{
+    switch (i) {
+        case 1:
+            switch (j) {
+                case 1:
+                    return m_invInertiaTensor6DOF11W;
+                case 2:
+                    return m_invInertiaTensor6DOF12W;
+            }
+        case 2:
+            switch (j) {
+                case 1:
+                    return m_invInertiaTensor6DOF21W;
+                case 2:
+                    return m_invInertiaTensor6DOF22W;
             }
         }
     return btMatrix3x3( btScalar(0.0),btScalar(0.0),btScalar(0.0),

@@ -703,6 +703,14 @@ public:
 	    int i,
 	    int j
 	);
+	
+	    void
+    setBuoyancy(
+        const MT_Vector3& buoyancy
+    );
+    
+        MT_Vector3
+    getBuoyancy();
 
 		void
 	ApplyRotation(
@@ -1033,6 +1041,9 @@ public:
     KX_PYMETHOD_NOARGS(KX_GameObject,Disable6DOF);
     KX_PYMETHOD_VARARGS(KX_GameObject,Get6DOFinvInertia);
     KX_PYMETHOD_VARARGS(KX_GameObject,Set6DOFinertia);
+    
+    KX_PYMETHOD_VARARGS(KX_GameObject,SetBuoyancy);
+    KX_PYMETHOD_NOARGS(KX_GameObject,GetBuoyancy);
     
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetReactionForce);
 
