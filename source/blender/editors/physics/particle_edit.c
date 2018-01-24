@@ -424,8 +424,8 @@ static bool PE_create_shape_tree(PEData *data, Object *shapeob)
 		return false;
 	}
 	
-	DM_ensure_tessface(dm);
-	return bvhtree_from_mesh_faces(&data->shape_bvh, dm, 0.0f, 4, 8);
+	DM_ensure_looptri(dm);
+	return (bvhtree_from_mesh_looptri(&data->shape_bvh, dm, 0.0f, 4, 8) != NULL);
 }
 
 static void PE_free_shape_tree(PEData *data)
@@ -1634,7 +1634,10 @@ static int select_random_exec(bContext *C, wmOperator *op)
 	int p;
 	int k;
 
-	const float randf = RNA_float_get (op->ptr, "percent") / 100.0f;
+	const float randfac = RNA_float_get (op->ptr, "percent") / 100.0f;
+	const int seed = RNA_int_get(op->ptr, "seed");
+	const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
+	RNG *rng;
 
 	type = RNA_enum_get(op->ptr, "type");
 
@@ -1644,10 +1647,12 @@ static int select_random_exec(bContext *C, wmOperator *op)
 	ob = CTX_data_active_object(C);
 	edit = PE_get_current(scene, ob);
 
+	rng = BLI_rng_new_srandom(seed);
+
 	switch (type) {
 		case RAN_HAIR:
 			LOOP_VISIBLE_POINTS {
-				int flag = (BLI_frand() < randf) ? SEL_SELECT : SEL_DESELECT;
+				int flag = ((BLI_rng_get_float(rng) < randfac) == select) ? SEL_SELECT : SEL_DESELECT;
 				LOOP_KEYS {
 					select_action_apply (point, key, flag);
 				}
@@ -1656,12 +1661,14 @@ static int select_random_exec(bContext *C, wmOperator *op)
 		case RAN_POINTS:
 			LOOP_VISIBLE_POINTS {
 				LOOP_VISIBLE_KEYS {
-					int flag = (BLI_frand() < randf) ? SEL_SELECT : SEL_DESELECT;
+					int flag = ((BLI_rng_get_float(rng) < randfac) == select) ? SEL_SELECT : SEL_DESELECT;
 					select_action_apply (point, key, flag);
 				}
 			}
 			break;
 	}
+
+	BLI_rng_free(rng);
 
 	PE_update_selection(data.scene, data.ob, 1);
 	WM_event_add_notifier(C, NC_OBJECT|ND_PARTICLE|NA_SELECTED, data.ob);
@@ -1684,11 +1691,9 @@ void PARTICLE_OT_select_random(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_float_percentage (ot->srna, "percent", 50.0f, 0.0f, 100.0f, "Percent",
-                           "Percentage (mean) of elements in randomly selected set",
-                           0.0f, 100.0f);
+	WM_operator_properties_select_random(ot);
 	ot->prop = RNA_def_enum (ot->srna, "type", select_random_type_items, RAN_HAIR,
-                           "Type", "Select either hair or points");
+	                         "Type", "Select either hair or points");
 }
 
 /************************ select linked operator ************************/
@@ -3485,7 +3490,7 @@ static int brush_add(PEData *data, short number)
 	if (psmd->dm->deformedOnly || psys->part->use_modifier_stack)
 		dm = psmd->dm;
 	else {
-		dm = mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH);
+		dm = mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH | CD_MASK_MFACE);
 		release_dm = true;
 	}
 

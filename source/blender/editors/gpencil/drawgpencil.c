@@ -41,7 +41,7 @@
 #include "BLI_utildefines.h"
 
 #include "BLF_api.h"
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "DNA_gpencil_types.h"
 #include "DNA_scene_types.h"
@@ -398,7 +398,7 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 			gluQuadricDrawStyle(qobj, GLU_FILL);
 			
 			/* need to translate drawing position, but must reset after too! */
-			glTranslatef(co[0], co[1], 0.0);
+			glTranslate2fv(co);
 			gluDisk(qobj, 0.0,  thickness, 32, 1);
 			glTranslatef(-co[0], -co[1], 0.0);
 			
@@ -1111,7 +1111,13 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	 */
 	
 	/* turn on alpha-blending */
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	if (GLEW_VERSION_1_4) {
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	}
+	else {
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
+
 	glEnable(GL_BLEND);
 	
 	/* draw! */

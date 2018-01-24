@@ -324,6 +324,7 @@ static bool object_modifier_remove(Main *bmain, Object *ob, ModifierData *md,
 
 	BLI_remlink(&ob->modifiers, md);
 	modifier_free(md);
+	BKE_object_free_derived_caches(ob);
 
 	return 1;
 }
@@ -708,6 +709,8 @@ int ED_object_modifier_apply(ReportList *reports, Scene *scene, Object *ob, Modi
 
 	BLI_remlink(&ob->modifiers, md);
 	modifier_free(md);
+
+	BKE_object_free_derived_caches(ob);
 
 	return 1;
 }
@@ -1356,7 +1359,7 @@ void OBJECT_OT_multires_external_save(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_BTX, FILE_SPECIAL, FILE_SAVE,
-	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 	edit_modifier_properties(ot);
 }
 

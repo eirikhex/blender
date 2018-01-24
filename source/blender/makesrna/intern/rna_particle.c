@@ -45,7 +45,7 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "rna_internal.h"
 
@@ -491,7 +491,7 @@ static int rna_ParticleSystem_tessfaceidx_on_emitter(ParticleSystem *particlesys
 		num = cpa->num;
 
 		if (part->childtype == PART_CHILD_FACES) {
-			if (ELEM(PART_FROM_FACE, PART_FROM_FACE, PART_FROM_VOLUME)) {
+			if (ELEM(part->from, PART_FROM_FACE, PART_FROM_VOLUME)) {
 				if (num != DMCACHE_NOTFOUND && num < totface) {
 					*r_fuv = &cpa->fuv;
 					return num;
@@ -751,13 +751,13 @@ static void rna_particle_settings_set(PointerRNA *ptr, PointerRNA value)
 
 	if (psys->part) {
 		old_type = psys->part->type;
-		psys->part->id.us--;
+		id_us_min(&psys->part->id);
 	}
 
 	psys->part = (ParticleSettings *)value.data;
 
 	if (psys->part) {
-		psys->part->id.us++;
+		id_us_plus(&psys->part->id);
 		psys_check_boid_data(psys);
 		if (old_type != psys->part->type)
 			psys->recalc |= PSYS_RECALC_TYPE;
@@ -1724,7 +1724,7 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "ParticleSettingsTextureSlot", "TextureSlot");
 	RNA_def_struct_sdna(srna, "MTex");
 	RNA_def_struct_ui_text(srna, "Particle Settings Texture Slot",
-	                       "Texture slot for textures in a Particle Settings datablock");
+	                       "Texture slot for textures in a Particle Settings data-block");
 
 	prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "texco");

@@ -30,7 +30,7 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -189,7 +189,7 @@ static void rna_def_lamp_mtex(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "LampTextureSlot", "TextureSlot");
 	RNA_def_struct_sdna(srna, "MTex");
-	RNA_def_struct_ui_text(srna, "Lamp Texture Slot", "Texture slot for textures in a Lamp datablock");
+	RNA_def_struct_ui_text(srna, "Lamp Texture Slot", "Texture slot for textures in a Lamp data-block");
 
 	prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "texco");
@@ -343,13 +343,13 @@ static void rna_def_lamp(BlenderRNA *brna)
 
 	srna = RNA_def_struct(brna, "Lamp", "ID");
 	RNA_def_struct_refine_func(srna, "rna_Lamp_refine");
-	RNA_def_struct_ui_text(srna, "Lamp", "Lamp datablock for lighting a scene");
+	RNA_def_struct_ui_text(srna, "Lamp", "Lamp data-block for lighting a scene");
 	RNA_def_struct_ui_icon(srna, ICON_LAMP_DATA);
 
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, lamp_type_items);
 	RNA_def_property_ui_text(prop, "Type", "Type of Lamp");
-	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_LAMP);
+	RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_LAMP);
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop = RNA_def_property(srna, "distance", PROP_FLOAT, PROP_DISTANCE);

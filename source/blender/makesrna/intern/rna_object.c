@@ -46,7 +46,6 @@
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
 #include "BKE_group.h" /* needed for BKE_group_object_exists() */
-#include "BKE_object.h" /* Needed for BKE_object_matrix_local_get() */
 #include "BKE_object_deform.h"
 
 #include "RNA_access.h"
@@ -88,8 +87,6 @@ EnumPropertyItem object_empty_drawtype_items[] = {
 
 static EnumPropertyItem parent_type_items[] = {
 	{PAROBJECT, "OBJECT", 0, "Object", "The object is parented to an object"},
-	{PARCURVE, "CURVE", 0, "Curve", "The object is parented to a curve"},
-	{PARKEY, "KEY", 0, "Key", ""},
 	{PARSKEL, "ARMATURE", 0, "Armature", ""},
 	{PARSKEL, "LATTICE", 0, "Lattice", "The object is parented to a lattice"}, /* PARSKEL reuse will give issues */
 	{PARVERT1, "VERTEX", 0, "Vertex", "The object is parented to a vertex"},
@@ -110,13 +107,13 @@ static EnumPropertyItem dupli_items[] = {
 #endif
 
 static EnumPropertyItem collision_bounds_items[] = {
-	{OB_BOUND_BOX, "BOX", 0, "Box", ""},
-	{OB_BOUND_SPHERE, "SPHERE", 0, "Sphere", ""},
-	{OB_BOUND_CYLINDER, "CYLINDER", 0, "Cylinder", ""},
-	{OB_BOUND_CONE, "CONE", 0, "Cone", ""},
-	{OB_BOUND_CONVEX_HULL, "CONVEX_HULL", 0, "Convex Hull", ""},
-	{OB_BOUND_TRIANGLE_MESH, "TRIANGLE_MESH", 0, "Triangle Mesh", ""},
-	{OB_BOUND_CAPSULE, "CAPSULE", 0, "Capsule", ""},
+	{OB_BOUND_BOX, "BOX", ICON_MESH_CUBE, "Box", ""},
+	{OB_BOUND_SPHERE, "SPHERE", ICON_MESH_UVSPHERE, "Sphere", ""},
+	{OB_BOUND_CYLINDER, "CYLINDER", ICON_MESH_CYLINDER, "Cylinder", ""},
+	{OB_BOUND_CONE, "CONE", ICON_MESH_CONE, "Cone", ""},
+	{OB_BOUND_CONVEX_HULL, "CONVEX_HULL", ICON_MESH_ICOSPHERE, "Convex Hull", ""},
+	{OB_BOUND_TRIANGLE_MESH, "TRIANGLE_MESH", ICON_MESH_MONKEY, "Triangle Mesh", ""},
+	{OB_BOUND_CAPSULE, "CAPSULE", ICON_MESH_CAPSULE, "Capsule", ""},
 	/*{OB_DYN_MESH, "DYNAMIC_MESH", 0, "Dynamic Mesh", ""}, */
 	{0, NULL, 0, NULL, NULL}
 };
@@ -202,7 +199,6 @@ EnumPropertyItem object_axis_unsigned_items[] = {
 #include "BKE_scene.h"
 #include "BKE_deform.h"
 
-#include "ED_mesh.h"
 #include "ED_object.h"
 #include "ED_particle.h"
 #include "ED_curve.h"
@@ -469,16 +465,13 @@ static EnumPropertyItem *rna_Object_parent_type_itemf(bContext *UNUSED(C), Point
 	if (ob->parent) {
 		Object *par = ob->parent;
 		
-		if (par->type == OB_CURVE) {
-			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARCURVE);
-		}
-		else if (par->type == OB_LATTICE) {
+		if (par->type == OB_LATTICE) {
 			/* special hack: prevents this overriding others */
-			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[4], PARSKEL);
+			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[2], PARSKEL);
 		}
 		else if (par->type == OB_ARMATURE) {
 			/* special hack: prevents this being overrided */
-			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[3], PARSKEL);
+			RNA_enum_items_add_value(&item, &totitem, &parent_type_items[1], PARSKEL);
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARBONE);
 		}
 
@@ -542,11 +535,14 @@ static void rna_Object_dup_group_set(PointerRNA *ptr, PointerRNA value)
 	/* must not let this be set if the object belongs in this group already,
 	 * thus causing a cycle/infinite-recursion leading to crashes on load [#25298]
 	 */
-	if (BKE_group_object_exists(grp, ob) == 0)
+	if (BKE_group_object_exists(grp, ob) == 0) {
 		ob->dup_group = grp;
-	else
+		id_lib_extern((ID *)grp);
+	}
+	else {
 		BKE_report(NULL, RPT_ERROR,
 		           "Cannot set dupli-group as object belongs in group being instanced, thus causing a cycle");
+	}
 }
 
 static void rna_VertexGroup_name_set(PointerRNA *ptr, const char *value)
@@ -717,7 +713,7 @@ static void rna_Object_active_material_set(PointerRNA *ptr, PointerRNA value)
 	Object *ob = (Object *)ptr->id.data;
 
 	DAG_id_tag_update(value.data, 0);
-	assign_material(ob, value.data, ob->actcol, BKE_MAT_ASSIGN_USERPREF);
+	assign_material(ob, value.data, ob->actcol, BKE_MAT_ASSIGN_EXISTING);
 }
 
 static int rna_Object_active_material_editable(PointerRNA *ptr)
@@ -889,7 +885,7 @@ static void rna_MaterialSlot_material_set(PointerRNA *ptr, PointerRNA value)
 	Object *ob = (Object *)ptr->id.data;
 	int index = (Material **)ptr->data - ob->mat;
 
-	assign_material(ob, value.data, index + 1, BKE_MAT_ASSIGN_USERPREF);
+	assign_material(ob, value.data, index + 1, BKE_MAT_ASSIGN_EXISTING);
 }
 
 static int rna_MaterialSlot_link_get(PointerRNA *ptr)
@@ -1040,6 +1036,11 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 			ob->gameflag |= OB_COLLISION | OB_CHARACTER;
 			ob->gameflag &= ~(OB_SENSOR | OB_OCCLUDER | OB_DYNAMIC | OB_RIGID_BODY | OB_SOFT_BODY | OB_ACTOR |
 			                  OB_ANISOTROPIC_FRICTION | OB_DO_FH | OB_ROT_FH | OB_COLLISION_RESPONSE | OB_NAVMESH);
+			/* When we switch to character physics and the collision bounds is set to triangle mesh
+			we have to change collision bounds because triangle mesh is not supported by Characters*/
+			if ((ob->gameflag & OB_BOUNDS) && ob->collision_boundtype == OB_BOUND_TRIANGLE_MESH) {
+				ob->boundtype = ob->collision_boundtype = OB_BOUND_BOX;
+			}
 			break;
 		case OB_BODY_TYPE_STATIC:
 			ob->gameflag |= OB_COLLISION;
@@ -1141,7 +1142,7 @@ static void rna_GameObjectSettings_state_get(PointerRNA *ptr, int *values)
 
 	memset(values, 0, sizeof(int) * OB_MAX_STATES);
 	for (i = 0; i < OB_MAX_STATES; i++) {
-		values[i] = (ob->state & (1 << i)) | all_states;
+		values[i] = (ob->state & (1 << i)) ? 1 : 0 | all_states;
 	}
 }
 
@@ -1605,7 +1606,7 @@ static void rna_def_material_slot(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "Material");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_pointer_funcs(prop, "rna_MaterialSlot_material_get", "rna_MaterialSlot_material_set", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Material", "Material datablock used by this material slot");
+	RNA_def_property_ui_text(prop, "Material", "Material data-block used by this material slot");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_MaterialSlot_update");
 
 	prop = RNA_def_property(srna, "link", PROP_ENUM, PROP_NONE);
@@ -1734,16 +1735,31 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_float_default(prop, 0.1f);
 	RNA_def_property_ui_text(prop, "Rotation Damping", "General rotation damping");
 
-	prop = RNA_def_property(srna, "velocity_min", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "velocity_min", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "min_vel");
 	RNA_def_property_range(prop, 0.0, 1000.0);
-	RNA_def_property_ui_text(prop, "Velocity Min", "Clamp velocity to this minimum speed (except when totally still)");
+	RNA_def_property_ui_text(prop, "Velocity Min", "Clamp velocity to this minimum speed (except when totally still), "
+	                         "in distance per second");
 
-	prop = RNA_def_property(srna, "velocity_max", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "velocity_max", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "max_vel");
 	RNA_def_property_range(prop, 0.0, 1000.0);
-	RNA_def_property_ui_text(prop, "Velocity Max", "Clamp velocity to this maximum speed");
+	RNA_def_property_ui_text(prop, "Velocity Max", "Clamp velocity to this maximum speed, "
+	                         "in distance per second");
 	
+	prop = RNA_def_property(srna, "angular_velocity_min", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "min_angvel");
+	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_ui_text(prop, "Angular Velocity Min",
+	                         "Clamp angular velocity to this minimum speed (except when totally still), "
+	                         "in angle per second");
+
+	prop = RNA_def_property(srna, "angular_velocity_max", PROP_FLOAT, PROP_ANGLE);
+	RNA_def_property_float_sdna(prop, NULL, "max_angvel");
+	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_ui_text(prop, "Angular Velocity Max", "Clamp angular velocity to this maximum speed, "
+	                         "in angle per second");
+
 	/* Character physics */
 	prop = RNA_def_property(srna, "step_height", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "step_height");
@@ -1762,6 +1778,14 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0, 1000.0);
 	RNA_def_property_float_default(prop, 55.0f);
 	RNA_def_property_ui_text(prop, "Fall Speed Max", "Maximum speed at which the character will fall");
+
+	prop = RNA_def_property(srna, "jump_max", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "max_jumps");
+	RNA_def_property_range(prop, 1, CHAR_MAX);
+	RNA_def_property_ui_range(prop, 1, 10, 1, 1);
+	RNA_def_property_int_default(prop, 1);
+	RNA_def_property_ui_text(prop, "Max Jumps",
+	                         "The maximum number of jumps the character can make before it hits the ground");
 
 	/* Collision Masks */
 	prop = RNA_def_property(srna, "collision_group", PROP_BOOLEAN, PROP_LAYER_MEMBER);
@@ -2187,7 +2211,7 @@ static void rna_def_object(BlenderRNA *brna)
 	static int boundbox_dimsize[] = {8, 3};
 
 	srna = RNA_def_struct(brna, "Object", "ID");
-	RNA_def_struct_ui_text(srna, "Object", "Object datablock defining an object in a scene");
+	RNA_def_struct_ui_text(srna, "Object", "Object data-block defining an object in a scene");
 	RNA_def_struct_clear_flag(srna, STRUCT_ID_REFCOUNT);
 	RNA_def_struct_ui_icon(srna, ICON_OBJECT_DATA);
 
@@ -2761,7 +2785,7 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "gpd");
 	RNA_def_property_struct_type(prop, "GreasePencil");
 	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
-	RNA_def_property_ui_text(prop, "Grease Pencil Data", "Grease Pencil datablock");
+	RNA_def_property_ui_text(prop, "Grease Pencil Data", "Grease Pencil data-block");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 	
 	/* pose */

@@ -94,7 +94,10 @@
 #include "ED_datafiles.h"
 #include "ED_render.h"
 
-
+#ifndef NDEBUG
+/* Used for database init assert(). */
+#  include "BLI_threads.h"
+#endif
 
 ImBuf *get_brush_icon(Brush *brush)
 {
@@ -204,11 +207,16 @@ static Main *load_main_from_memory(const void *blend, int blend_size)
 }
 #endif
 
-void ED_preview_init_dbase(void)
+void ED_preview_ensure_dbase(void)
 {
 #ifndef WITH_HEADLESS
-	G_pr_main = load_main_from_memory(datatoc_preview_blend, datatoc_preview_blend_size);
-	G_pr_main_cycles = load_main_from_memory(datatoc_preview_cycles_blend, datatoc_preview_cycles_blend_size);
+	static bool base_initialized = false;
+	BLI_assert(BLI_thread_is_main());
+	if (!base_initialized) {
+		G_pr_main = load_main_from_memory(datatoc_preview_blend, datatoc_preview_blend_size);
+		G_pr_main_cycles = load_main_from_memory(datatoc_preview_cycles_blend, datatoc_preview_cycles_blend_size);
+		base_initialized = true;
+	}
 #endif
 }
 
@@ -559,10 +567,16 @@ static bool ed_preview_draw_rect(ScrArea *sa, int split, int first, rcti *rect, 
 
 	RE_AcquireResultImageViews(re, &rres);
 
-	/* material preview only needs monoscopy (view 0) */
-	rv = RE_RenderViewGetById(&rres, 0);
+	if (!BLI_listbase_is_empty(&rres.views)) {
+		/* material preview only needs monoscopy (view 0) */
+		rv = RE_RenderViewGetById(&rres, 0);
+	}
+	else {
+		/* possible the job clears the views but we're still drawing T45496 */
+		rv = NULL;
+	}
 
-	if (rv->rectf) {
+	if (rv && rv->rectf) {
 		
 		if (ABS(rres.rectx - newx) < 2 && ABS(rres.recty - newy) < 2) {
 
@@ -600,7 +614,7 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 		ID *id = (ID *)idp;
 		ID *parent = (ID *)parentp;
 		MTex *slot = (MTex *)slotp;
-		SpaceButs *sbuts = sa->spacedata.first;
+		SpaceButs *sbuts = CTX_wm_space_buts(C);
 		ShaderPreview *sp = WM_jobs_customdata(wm, sa);
 		rcti newrect;
 		int ok;
@@ -625,11 +639,13 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 		/* start a new preview render job if signalled through sbuts->preview,
 		 * if no render result was found and no preview render job is running,
 		 * or if the job is running and the size of preview changed */
-		if ((sbuts->spacetype == SPACE_BUTS && sbuts->preview) ||
+		if ((sbuts != NULL && sbuts->preview) ||
 		    (!ok && !WM_jobs_test(wm, sa, WM_JOB_TYPE_RENDER_PREVIEW)) ||
 		    (sp && (ABS(sp->sizex - newx) >= 2 || ABS(sp->sizey - newy) > 2)))
 		{
-			sbuts->preview = 0;
+			if (sbuts != NULL) {
+				sbuts->preview = 0;
+			}
 			ED_preview_shader_job(C, sa, id, parent, slot, newx, newy, PR_BUTS_RENDER);
 		}
 	}
@@ -1146,6 +1162,8 @@ void ED_preview_icon_render(Main *bmain, Scene *scene, ID *id, unsigned int *rec
 	short stop = false, update = false;
 	float progress = 0.0f;
 
+	ED_preview_ensure_dbase();
+
 	ip.bmain = bmain;
 	ip.scene = scene;
 	ip.owner = id;
@@ -1164,7 +1182,9 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 {
 	wmJob *wm_job;
 	IconPreview *ip, *old_ip;
-	
+
+	ED_preview_ensure_dbase();
+
 	/* suspended start means it starts after 1 timer step, see WM_jobs_timer below */
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Icon Preview",
 	                     WM_JOB_EXCL_RENDER | WM_JOB_SUSPEND, WM_JOB_TYPE_RENDER_PREVIEW);
@@ -1205,6 +1225,8 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 	if (use_new_shading && method == PR_NODE_RENDER && id_type != ID_TE) {
 		return;
 	}
+
+	ED_preview_ensure_dbase();
 
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Shader Preview",
 	                    WM_JOB_EXCL_RENDER, WM_JOB_TYPE_RENDER_PREVIEW);

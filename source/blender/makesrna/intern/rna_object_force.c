@@ -487,12 +487,12 @@ static void rna_FieldSettings_update(Main *UNUSED(bmain), Scene *UNUSED(scene), 
 		ParticleSettings *part = (ParticleSettings *)ptr->id.data;
 
 		if (part->pd->forcefield != PFIELD_TEXTURE && part->pd->tex) {
-			part->pd->tex->id.us--;
+			id_us_min(&part->pd->tex->id);
 			part->pd->tex = NULL;
 		}
 
 		if (part->pd2 && part->pd2->forcefield != PFIELD_TEXTURE && part->pd2->tex) {
-			part->pd2->tex->id.us--;
+			id_us_min(&part->pd2->tex->id);
 			part->pd2->tex = NULL;
 		}
 
@@ -504,7 +504,7 @@ static void rna_FieldSettings_update(Main *UNUSED(bmain), Scene *UNUSED(scene), 
 		Object *ob = (Object *)ptr->id.data;
 
 		if (ob->pd->forcefield != PFIELD_TEXTURE && ob->pd->tex) {
-			ob->pd->tex->id.us--;
+			id_us_min(&ob->pd->tex->id);
 			ob->pd->tex = NULL;
 		}
 
@@ -1639,7 +1639,7 @@ static void rna_def_softbody(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Goal Default",
-	                         "Default Goal (vertex target position) value, when no Vertex Group used");
+	                         "Default Goal (vertex target position) value");
 	RNA_def_property_update(prop, 0, "rna_softbody_update");
 	
 	prop = RNA_def_property(srna, "goal_spring", PROP_FLOAT, PROP_NONE);

@@ -51,6 +51,7 @@
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_font.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
@@ -450,7 +451,7 @@ void FONT_OT_text_paste_from_file(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_TEXT, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 
@@ -508,7 +509,7 @@ void FONT_OT_text_paste_from_clipboard(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_TEXT, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 /******************* text to object operator ********************/
@@ -538,7 +539,7 @@ static void txt_add_object(bContext *C, TextLine *firstline, int totline, const 
 
 	cu = obedit->data;
 	cu->vfont = BKE_vfont_builtin_get();
-	cu->vfont->id.us++;
+	id_us_plus(&cu->vfont->id);
 
 	for (tmp = firstline, a = 0; nbytes < MAXTEXT && a < totline; tmp = tmp->next, a++) {
 		size_t nchars_line, nbytes_line;
@@ -1727,7 +1728,7 @@ static int font_open_exec(bContext *C, wmOperator *op)
 	if (pprop->prop) {
 		/* when creating new ID blocks, use is already 1, but RNA
 		 * pointer se also increases user, so this compensates it */
-		font->id.us--;
+		id_us_min(&font->id);
 	
 		RNA_id_pointer_create(&font->id, &idptr);
 		RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr);
@@ -1785,7 +1786,7 @@ void FONT_OT_open(wmOperatorType *ot)
 	
 	/* properties */
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_FTFONT, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 }
 
 /******************* delete operator *********************/

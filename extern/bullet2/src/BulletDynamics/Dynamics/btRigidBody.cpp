@@ -57,15 +57,7 @@ void	btRigidBody::setupRigidBody(const btRigidBody::btRigidBodyConstructionInfo&
 	m_externalTorque.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	
 	m_6DOF = false;
-	m_invInertiaTensor6DOF11 = btMatrix3x3::getIdentity() * constructionInfo.m_mass;
-	m_invInertiaTensor6DOF12.setValue(  btScalar(0.0), btScalar(0.0), btScalar(0.0),
-	                                    btScalar(0.0), btScalar(0.0), btScalar(0.0),
-	                                    btScalar(0.0), btScalar(0.0), btScalar(0.0));
-	                                    
-	m_invInertiaTensor6DOF21.setValue(  btScalar(0.0), btScalar(0.0), btScalar(0.0),
-	                                    btScalar(0.0), btScalar(0.0), btScalar(0.0),
-	                                    btScalar(0.0), btScalar(0.0), btScalar(0.0));
-	m_invInertiaTensor6DOF22 = btMatrix3x3::getIdentity().scaled(constructionInfo.m_localInertia);
+
 	
     setDamping(constructionInfo.m_linearDamping, constructionInfo.m_angularDamping);
 
@@ -100,6 +92,7 @@ void	btRigidBody::setupRigidBody(const btRigidBody::btRigidBodyConstructionInfo&
 	setCollisionShape( constructionInfo.m_collisionShape );
 	m_debugBodyId = uniqueId++;
 	
+	set6DOFMassProps(constructionInfo.m_mass, constructionInfo.m_localInertia);
 	setMassProps(constructionInfo.m_mass, constructionInfo.m_localInertia);
 	updateInertiaTensor();
 
@@ -268,7 +261,7 @@ void btRigidBody::proceedToTransform(const btTransform& newTrans)
 
 void btRigidBody::setMassProps(btScalar mass, const btVector3& inertia)
 {   
-    std::cout<<" MASS: " <<mass;
+    //std::cout<<" MASS: " <<mass;
 	if (mass == btScalar(0.))
 	{
 		m_collisionFlags |= btCollisionObject::CF_STATIC_OBJECT;
@@ -289,23 +282,64 @@ void btRigidBody::setMassProps(btScalar mass, const btVector3& inertia)
 	m_invMass = m_linearFactor*m_inverseMass;
 }
 
+void btRigidBody::set6DOFMassProps(btScalar mass, const btVector3& inertia)
+{
+    if (mass == btScalar(0.))
+    {
+    m_invInertiaTensor6DOF11 =  btMatrix3x3::btMatrix3x3( btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                            btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                            btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	m_invInertiaTensor6DOF12 =  btMatrix3x3::btMatrix3x3( btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                            btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                            btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	m_invInertiaTensor6DOF21 =  btMatrix3x3::btMatrix3x3( btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                            btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                            btScalar(0.0), btScalar(0.0), btScalar(0.0));
+	m_invInertiaTensor6DOF22 =  btMatrix3x3::getIdentity().scaled(btVector3::btVector3(inertia.x() != btScalar(0.0) ? btScalar(1.0) / inertia.x(): btScalar(0.0),
+				   inertia.y() != btScalar(0.0) ? btScalar(1.0) / inertia.y(): btScalar(0.0),
+				   inertia.z() != btScalar(0.0) ? btScalar(1.0) / inertia.z(): btScalar(0.0)));
+    }
+    else
+    {
+    set6DOFinertia( 
+	btMatrix3x3::getIdentity() * mass, 
+	btMatrix3x3::btMatrix3x3( btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                          btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                          btScalar(0.0), btScalar(0.0), btScalar(0.0)),
+	btMatrix3x3::btMatrix3x3( btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                          btScalar(0.0), btScalar(0.0), btScalar(0.0),
+	                          btScalar(0.0), btScalar(0.0), btScalar(0.0)),
+	btMatrix3x3::getIdentity().scaled(inertia)
+	);
+    } 
+    
+
+}
+
 	
 void btRigidBody::updateInertiaTensor() 
 {
 	if(m_6DOF)
 	{
-	    btMatrix3x3 R = m_worldTransform.getBasis();
-	    m_invInertiaTensor6DOF11W = R * m_invInertiaTensor6DOF11 * R.transpose() ;
-	    m_invInertiaTensor6DOF12W = R * m_invInertiaTensor6DOF12 * R.transpose();
-	    m_invInertiaTensor6DOF21W = R * m_invInertiaTensor6DOF21 * R.transpose();
-	    m_invInertiaTensor6DOF22W = R * m_invInertiaTensor6DOF22 * R.transpose();
-	    m_invInertiaTensorWorld   = m_invInertiaTensor6DOF22W;
+	    update6DOFInertiaTensor();
 	}
 	else
 	{
 	    m_invInertiaTensorWorld = m_worldTransform.getBasis().scaled(m_invInertiaLocal) * m_worldTransform.getBasis().transpose();
+	    m_invInertiaTensor6DOF22W = m_invInertiaTensor6DOF22W;
 	}
 	
+}
+
+void btRigidBody::update6DOFInertiaTensor()
+{
+    btMatrix3x3 R = m_worldTransform.getBasis();
+
+    m_invInertiaTensor6DOF11W = R * m_invInertiaTensor6DOF11.timesTranspose(R);
+	m_invInertiaTensor6DOF12W = R * m_invInertiaTensor6DOF12.timesTranspose(R);
+	m_invInertiaTensor6DOF21W = R * m_invInertiaTensor6DOF21.timesTranspose(R);
+    m_invInertiaTensor6DOF22W = R * m_invInertiaTensor6DOF22.timesTranspose(R);
+	m_invInertiaTensorWorld   = m_invInertiaTensor6DOF22W;
 }
 
 
@@ -389,8 +423,7 @@ void btRigidBody::set6DOFinertia(const btMatrix3x3& A,const btMatrix3x3& B,const
 	m_invInertiaTensor6DOF21 = neg * (E*C*Ainv);
 	m_invInertiaTensor6DOF22 = E;
 	
-	//setMassProps(A[0][0], btVector3(D[0][0],D[1][1],D[2][2]));
-	updateInertiaTensor();
+	update6DOFInertiaTensor();
 }
 
 btMatrix3x3 btRigidBody::get6DOFinvInertia(int i, int j)

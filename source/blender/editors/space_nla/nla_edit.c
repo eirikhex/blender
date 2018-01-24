@@ -43,7 +43,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_action.h"
 #include "BKE_fcurve.h"
@@ -1953,7 +1953,7 @@ static int nlaedit_apply_scale_exec(bContext *C, wmOperator *UNUSED(op))
 					bAction *act = BKE_action_copy(strip->act);
 					
 					/* set this as the new referenced action, decrementing the users of the old one */
-					strip->act->id.us--;
+					id_us_min(&strip->act->id);
 					strip->act = act;
 				}
 				

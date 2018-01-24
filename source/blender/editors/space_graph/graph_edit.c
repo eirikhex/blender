@@ -36,7 +36,7 @@
 #include <float.h>
 
 #ifdef WITH_AUDASPACE
-#  include "AUD_C-API.h"
+#  include AUD_SPECIAL_H
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -52,7 +52,7 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
-#include "BLF_translation.h"
+#include "BLT_translation.h"
 
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
@@ -982,7 +982,7 @@ void GRAPH_OT_delete(wmOperatorType *ot)
 
 /* ******************** Clean Keyframes Operator ************************* */
 
-static void clean_graph_keys(bAnimContext *ac, float thresh)
+static void clean_graph_keys(bAnimContext *ac, float thresh, bool clean_chan)
 {	
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
@@ -994,7 +994,7 @@ static void clean_graph_keys(bAnimContext *ac, float thresh)
 	
 	/* loop through filtered data and clean curves */
 	for (ale = anim_data.first; ale; ale = ale->next) {
-		clean_fcurve((FCurve *)ale->key_data, thresh);
+		clean_fcurve(ac, ale, thresh, clean_chan);
 
 		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
@@ -1009,6 +1009,7 @@ static int graphkeys_clean_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
 	float thresh;
+	bool clean_chan;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -1016,9 +1017,9 @@ static int graphkeys_clean_exec(bContext *C, wmOperator *op)
 		
 	/* get cleaning threshold */
 	thresh = RNA_float_get(op->ptr, "threshold");
-	
+	clean_chan = RNA_boolean_get(op->ptr, "channels");
 	/* clean keyframes */
-	clean_graph_keys(&ac, thresh);
+	clean_graph_keys(&ac, thresh, clean_chan);
 	
 	/* set notifier that keyframes have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
@@ -1043,6 +1044,7 @@ void GRAPH_OT_clean(wmOperatorType *ot)
 	
 	/* properties */
 	ot->prop = RNA_def_float(ot->srna, "threshold", 0.001f, 0.0f, FLT_MAX, "Threshold", "", 0.0f, 1000.0f);
+	RNA_def_boolean(ot->srna, "channels", false, "Channels", "");
 }
 
 /* ******************** Bake F-Curve Operator *********************** */
@@ -1274,7 +1276,7 @@ void GRAPH_OT_sound_bake(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_SOUND | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
+	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY, FILE_SORT_ALPHA);
 	RNA_def_float(ot->srna, "low", 0.0f, 0.0, 100000.0, "Lowest frequency",
 	              "Cutoff frequency of a high-pass filter that is applied to the audio data", 0.1, 1000.00);
 	RNA_def_float(ot->srna, "high", 100000.0, 0.0, 100000.0, "Highest frequency",
@@ -1932,10 +1934,18 @@ static int graphkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 		SpaceIpo *sipo = (SpaceIpo *)ac.sl;
 		Scene *scene = ac.scene;
 		
-		/* take the average values, rounding to the nearest int for the current frame */
-		CFRA = iroundf(ked.f1 / ked.i1);
-		SUBFRA = 0.f;
-		sipo->cursorVal = ked.f2 / (float)ked.i1;
+		/* take the average values, rounding to the nearest int as necessary for int results */
+		if (sipo->mode == SIPO_MODE_DRIVERS) {
+			/* Drivers Mode - Affects cursor (float) */
+			sipo->cursorTime = ked.f1 / (float)ked.i1;
+			sipo->cursorVal  = ked.f2 / (float)ked.i1;
+		}
+		else {
+			/* Animation Mode - Affects current frame (int) */
+			CFRA = iroundf(ked.f1 / ked.i1);
+			SUBFRA = 0.f;
+			sipo->cursorVal = ked.f2 / (float)ked.i1;
+		}
 	}
 	
 	/* set notifier that things have changed */
@@ -1985,6 +1995,7 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 	bAnimListElem *ale;
 	int filter;
 	
+	SpaceIpo *sipo = (SpaceIpo *)ac->sl;
 	KeyframeEditData ked;
 	KeyframeEditFunc edit_cb;
 	float cursor_value = 0.0f;
@@ -1993,9 +2004,7 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
-	/* get beztriple editing callbacks */
-	edit_cb = ANIM_editkeyframes_snap(mode);
-	
+	/* init custom data for iterating over keyframes */
 	memset(&ked, 0, sizeof(KeyframeEditData)); 
 	ked.scene = ac->scene;
 	if (mode == GRAPHKEYS_SNAP_NEAREST_MARKER) {
@@ -2003,9 +2012,20 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 		ked.list.last = (ac->markers) ? ac->markers->last : NULL;
 	}
 	else if (mode == GRAPHKEYS_SNAP_VALUE) {
-		SpaceIpo *sipo = (SpaceIpo *)ac->sl;
 		cursor_value = (sipo) ? sipo->cursorVal : 0.0f;
 	}
+	else if (mode == GRAPHKEYS_SNAP_CFRA) {
+		/* In drivers mode, use the cursor value instead
+		 * (We need to use a different callback for that though)
+		 */
+		if (sipo->mode == SIPO_MODE_DRIVERS) {
+			ked.f1 = sipo->cursorTime;
+			mode = SNAP_KEYS_TIME;
+		}
+	}
+	
+	/* get beztriple editing callbacks */
+	edit_cb = ANIM_editkeyframes_snap(mode);
 	
 	/* snap keyframes */
 	for (ale = anim_data.first; ale; ale = ale->next) {
@@ -2028,7 +2048,7 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 		}
 		else 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
-
+		
 		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
 
@@ -2102,18 +2122,16 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 	bAnimListElem *ale;
 	int filter;
 	
+	SpaceIpo *sipo = (SpaceIpo *)ac->sl;
 	KeyframeEditData ked;
 	KeyframeEditFunc edit_cb;
 	float cursor_value = 0.0f;
 
-	/* get beztriple editing callbacks */
-	edit_cb = ANIM_editkeyframes_mirror(mode);
-	
+	/* init custom data for looping over keyframes */
 	memset(&ked, 0, sizeof(KeyframeEditData)); 
 	ked.scene = ac->scene;
 	
-	/* for 'first selected marker' mode, need to find first selected marker first! */
-	// XXX should this be made into a helper func in the API?
+	/* store mode-specific custom data... */
 	if (mode == GRAPHKEYS_MIRROR_MARKER) {
 		TimeMarker *marker = NULL;
 		
@@ -2127,9 +2145,20 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 			return;
 	}
 	else if (mode == GRAPHKEYS_MIRROR_VALUE) {
-		SpaceIpo *sipo = (SpaceIpo *)ac->sl;
 		cursor_value = (sipo) ? sipo->cursorVal : 0.0f;
 	}
+	else if (mode == GRAPHKEYS_MIRROR_CFRA) {
+		/* In drivers mode, use the cursor value instead
+		 * (We need to use a different callback for that though)
+		 */
+		if (sipo->mode == SIPO_MODE_DRIVERS) {
+			ked.f1 = sipo->cursorTime;
+			mode = MIRROR_KEYS_TIME;
+		}
+	}
+	
+	/* get beztriple editing callbacks */
+	edit_cb = ANIM_editkeyframes_mirror(mode);
 	
 	/* filter data */
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_CURVE_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
@@ -2156,7 +2185,7 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 		}
 		else 
 			ANIM_fcurve_keyframes_loop(&ked, ale->key_data, NULL, edit_cb, calchandles_fcurve);
-
+		
 		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
 

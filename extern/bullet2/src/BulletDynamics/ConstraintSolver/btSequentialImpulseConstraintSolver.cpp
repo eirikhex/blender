@@ -299,7 +299,7 @@ void	btSequentialImpulseConstraintSolver::initSolverBody(btSolverBody* solverBod
 
 	if (rb)
 	{   
-	    rb->integrateVelocities(timeStep);
+	    //rb->integrateVelocities(timeStep);
 		solverBody->m_worldTransform = rb->getWorldTransform();
 		solverBody->internalSetInvMass(btVector3(rb->getInvMass(),rb->getInvMass(),rb->getInvMass())*rb->getLinearFactor());
 		solverBody->m_originalBody = rb;
@@ -313,12 +313,18 @@ void	btSequentialImpulseConstraintSolver::initSolverBody(btSolverBody* solverBod
 		    //std::cout << "AngularVelocity: " << rb->getAngularVelocity()[0] << " " << rb->getAngularVelocity()[1] << " " << rb->getAngularVelocity()[2] <<std::endl;
 		    btVector3 force  = ( rb->get6DOFinvInertiaWorld(1,1) * rb->getTotalForce() + rb->get6DOFinvInertiaWorld(1,2) * rb->getTotalTorque()  ) * timeStep;
 		    btVector3 torque = ( rb->get6DOFinvInertiaWorld(2,2) * rb->getTotalTorque()  + rb->get6DOFinvInertiaWorld(2,1) * rb->getTotalForce()) * timeStep ;
-		    //std::cout << "Inertia: " << rb->get6DOFinvInertia(1,1)[0][0] << " " << rb->get6DOFinvInertia(1,1)[0][1] << " " << rb->get6DOFinvInertia(1,1)[0][2] << rb->get6DOFinvInertia(1,2)[0][0] << " " << rb->get6DOFinvInertia(1,2)[0][1] << " " << rb->get6DOFinvInertia(1,2)[0][2]<<std::endl;
-		    //std::cout << "         " << rb->get6DOFinvInertia(1,1)[1][0] << " " << rb->get6DOFinvInertia(1,1)[1][1] << " " << rb->get6DOFinvInertia(1,1)[1][2] << rb->get6DOFinvInertia(1,2)[1][0] << " " << rb->get6DOFinvInertia(1,2)[1][1] << " " << rb->get6DOFinvInertia(1,2)[1][2]<<std::endl;
-		    //std::cout << "         " << rb->get6DOFinvInertia(1,1)[2][0] << " " << rb->get6DOFinvInertia(1,1)[2][1] << " " << rb->get6DOFinvInertia(1,1)[2][2] << rb->get6DOFinvInertia(1,2)[2][0] << " " << rb->get6DOFinvInertia(1,2)[2][1] << " " << rb->get6DOFinvInertia(1,2)[2][2]<<std::endl;
+		    /*
+		    std::cout << "Inertia: " << rb->get6DOFinvInertiaWorld(1,1)[0][0] << " " << rb->get6DOFinvInertiaWorld(1,1)[0][1] << " " << rb->get6DOFinvInertiaWorld(1,1)[0][2] << rb->get6DOFinvInertiaWorld(1,2)[0][0] << " " << rb->get6DOFinvInertiaWorld(1,2)[0][1] << " " << rb->get6DOFinvInertiaWorld(1,2)[0][2]<<std::endl;
+		    std::cout << "         " << rb->get6DOFinvInertiaWorld(1,1)[1][0] << " " << rb->get6DOFinvInertiaWorld(1,1)[1][1] << " " << rb->get6DOFinvInertiaWorld(1,1)[1][2] << rb->get6DOFinvInertiaWorld(1,2)[1][0] << " " << rb->get6DOFinvInertiaWorld(1,2)[1][1] << " " << rb->get6DOFinvInertiaWorld(1,2)[1][2]<<std::endl;
+		    std::cout << "         " << rb->get6DOFinvInertiaWorld(1,1)[2][0] << " " << rb->get6DOFinvInertiaWorld(1,1)[2][1] << " " << rb->get6DOFinvInertiaWorld(1,1)[2][2] << rb->get6DOFinvInertiaWorld(1,2)[2][0] << " " << rb->get6DOFinvInertiaWorld(1,2)[2][1] << " " << rb->get6DOFinvInertiaWorld(1,2)[2][2]<<std::endl;
+		    std::cout  << "         " <<  rb->get6DOFinvInertiaWorld(2,1)[0][0] << " " << rb->get6DOFinvInertiaWorld(2,1)[0][1] << " " << rb->get6DOFinvInertiaWorld(2,1)[0][2] << rb->get6DOFinvInertiaWorld(2,2)[0][0] << " " << rb->get6DOFinvInertiaWorld(2,2)[0][1] << " " << rb->get6DOFinvInertiaWorld(2,2)[0][2]<<std::endl;
+		    std::cout << "         " << rb->get6DOFinvInertiaWorld(2,1)[1][0] << " " << rb->get6DOFinvInertiaWorld(2,1)[1][1] << " " << rb->get6DOFinvInertiaWorld(2,1)[1][2] << rb->get6DOFinvInertiaWorld(2,2)[1][0] << " " << rb->get6DOFinvInertiaWorld(2,2)[1][1] << " " << rb->get6DOFinvInertiaWorld(2,2)[1][2]<<std::endl;
+		    std::cout << "         " << rb->get6DOFinvInertiaWorld(2,1)[2][0] << " " << rb->get6DOFinvInertiaWorld(2,1)[2][1] << " " << rb->get6DOFinvInertiaWorld(2,1)[2][2] << rb->get6DOFinvInertiaWorld(2,2)[2][0] << " " << rb->get6DOFinvInertiaWorld(2,2)[2][1] << " " << rb->get6DOFinvInertiaWorld(2,2)[2][2]<<std::endl;
 		    
-		    //std::cout<<"\n Force: " << force[0] <<" "<< force[1] << " "<<force[2] << std::endl;
-		    //std::cout<<"\n Torque: " << torque[0] << " "<<torque[1] <<" "<< torque[2] << std::endl;
+		    std::cout<<"Force: " << force[0] <<" "<< force[1] << " "<<force[2] << std::endl;
+		    std::cout<<"Torque: " << torque[0] << " "<<torque[1] <<" "<< torque[2] << std::endl;
+		    std::cout <<"Timestep: " << timeStep<<std::endl;
+		    */
 		    
 		    solverBody->m_externalForceImpulse = force;
 		    solverBody->m_externalTorqueImpulse = torque;

@@ -300,6 +300,7 @@ public:
 	}
 	
 	void setMassProps(btScalar mass, const btVector3& inertia);
+	void set6DOFMassProps(btScalar mass, const btVector3& inertia);
 	
 	void enable6DOF()
 	{
@@ -412,7 +413,9 @@ public:
 		m_totalTorque.setValue(btScalar(0.0), btScalar(0.0), btScalar(0.0));
 	}
 	
-	void updateInertiaTensor();    
+	void updateInertiaTensor();
+	
+	void update6DOFInertiaTensor();    
 	
 	const btVector3&     getCenterOfMassPosition() const { 
 		return m_worldTransform.getOrigin(); 
