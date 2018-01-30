@@ -6,7 +6,12 @@ Compiled version is in the file `blender.tar.gz`
 
 The compiled version require boost libraries. Theese can be downloaded using ```sudo apt-get install libboost-all-dev```
 
-This repository could be compiled using:
+This repository could by first installing dependencies:
+```
+cd blender
+./build_files/build_environment/install_deps.sh
+```
+then compiled using:
 ```
 mkdir build & cd build
 cmake ..
